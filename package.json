@@ -1,0 +1,25 @@
+{
+  "name": "champ-calc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dgdevel/champ-calc.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dgdevel/champ-calc/issues"
+  },
+  "homepage": "https://github.com/dgdevel/champ-calc#readme",
+  "dependencies": {
+    "cookie": "^0.4.1",
+    "cookies": "^0.8.0",
+    "exceljs": "^4.3.0",
+    "request": "^2.88.2"
+  }
+}

@@ -1,0 +1,3 @@
+*.cache
+*.xlsx
+node_modules/

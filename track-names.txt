@@ -1,0 +1,19 @@
+Hock:Hockenheim
+Brands:Brands Hatch
+Snetterton:Snetterton
+Enzo e Dino:Imola
+Spa:Spa
+Long Beach:Long Beach
+Summit:Summit Point
+Charlotte:Charlotte Roval
+Carlos Pace:Interlagos
+Gilles:Montreal
+Motegi:Motegi
+Tsukuba:Tsukuba
+rburgring:Nurburgring
+Homestead:Miami
+Suzuka:Suzuka
+Catalunya:Catalunya
+Mount Panorama:Bathurst
+Canadian Tire:Mosport
+Mans:Le Mans
