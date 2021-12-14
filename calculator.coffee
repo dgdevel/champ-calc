@@ -16,6 +16,7 @@ cache = new filecache.FileCache('results.cache')
 subsessionids = fs.readFileSync process.argv[2]
     .toString()
     .split '\n'
+    .filter (line) -> line isnt ''
     .map (line) -> line.match /subsessionid=([0-9]+)/
     .map (match) -> parseInt match[1], 10
 
