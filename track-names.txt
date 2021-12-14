@@ -17,3 +17,4 @@ Catalunya:Catalunya
 Mount Panorama:Bathurst
 Canadian Tire:Mosport
 Mans:Le Mans
+Knockhill:Knockhill
