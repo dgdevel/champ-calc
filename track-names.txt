@@ -19,3 +19,6 @@ Canadian Tire:Mosport
 Mans:Le Mans
 Knockhill:Knockhill
 Zandvoort:Zandvoort
+Phillip:Phillip Island
+Silverstone:Silverstone
+Sebring:Sebring
