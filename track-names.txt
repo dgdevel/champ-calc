@@ -22,3 +22,7 @@ Zandvoort:Zandvoort
 Phillip:Phillip Island
 Silverstone:Silverstone
 Sebring:Sebring
+Detroit:Belle Isle
+Panorama:Bathurst
+Watkins:Watkins Glen
+Monza:Monza
