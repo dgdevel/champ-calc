@@ -26,3 +26,5 @@ Detroit:Belle Isle
 Panorama:Bathurst
 Watkins:Watkins Glen
 Monza:Monza
+Daytona:Daytona
+Barber:Barber
