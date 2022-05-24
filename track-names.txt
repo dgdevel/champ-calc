@@ -28,3 +28,5 @@ Watkins:Watkins Glen
 Monza:Monza
 Daytona:Daytona
 Barber:Barber
+Oulton:Oulton
+Virginia:VIR
