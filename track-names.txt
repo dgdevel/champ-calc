@@ -30,3 +30,4 @@ Daytona:Daytona
 Barber:Barber
 Oulton:Oulton
 Virginia:VIR
+Donington:Donington
