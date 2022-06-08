@@ -1,4 +1,5 @@
 https = require 'https'
+crypto = require 'crypto'
 
 filecache = require './filecache'
 logger = require './logger'
@@ -36,6 +37,8 @@ exports.login = (username, password, callback) ->
     method : 'post'
     headers:
       'Content-Type' : 'application/x-www-form-urlencoded'
+  password = "#{password}#{username.toLowerCase()}"
+  password = crypto.createHash('sha256').update(password).digest('base64')
   body = "username=#{encodeURIComponent username}&password=#{encodeURIComponent password}"
   req = https.request options, (res) ->
     parse_cookies res.headers['set-cookie']
