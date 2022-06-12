@@ -7,6 +7,11 @@ util = require './util'
 filecache = require './filecache'
 track_names = require './track-names'
 
+S5PointsStandingsManager = (require './s5points').S5PointsStandingsManager
+
+manager = new S5PointsStandingsManager
+
+
 ExcelJS = require 'exceljs'
 
 credentials = JSON.parse fs.readFileSync 'credentials.json'
@@ -23,14 +28,6 @@ subsessionids = fs.readFileSync process.argv[2]
 unescape_plus = util.unescape_plus
 clone = util.clone
 fix_names = util.fix_names
-
-filter_laps = (rows) ->
-  leaderlaps = rows[0].laps
-  limit = parseInt leaderlaps / 2
-  rows.filter (row) ->
-    # logger.log row.laps, limit, row.laps > limit
-    row.incs_counted = row.laps >= leaderlaps - 1
-    row.laps > limit
 
 get_irating_for_row = (row, callback) ->
   key = "irating.#{row.custid}.#{row.end_time}"
@@ -70,13 +67,10 @@ process_session = (subsessionid, callback) ->
     res.track_name = track_names.shorten res.track_name
 
     res.end_time = end_time
-    res.rows_pts = filter_laps res.rows
+    res.rows_pts = res.rows
     util.listexec res.rows_pts, get_irating_for_row, (rows) ->
       res.rows_pts = rows
-      res.sof = ir.calculate_sof rows.map (row) -> row.irating
-      points = ir.calculate_points rows.map (row) -> row.irating
-      for row,i in rows
-        row.points = points[i]
+      res.standings = manager.add_race rows
       callback res
 
 tab = '\t'
@@ -91,119 +85,90 @@ incs_sort = (a,b) ->
   else
     util.sum(util.sort(a.incs, util.asc).slice(0,8)) - util.sum(util.sort(b.incs, util.asc).slice(0,8))
 
+excel_addsheet = (workbook, name, color, headers, rows) ->
+  sheet = workbook.addWorksheet name,
+    properties:
+      tabColor:
+        argb: color
+  sheet.columns = ({ header: k, width: v } for k,v of headers)
+  for row, i in rows
+    for cell, j in row
+      sheet.getRow(i+2).getCell(j+1).value = cell
+  sheet
+
 process_results = (results) ->
+  drivers_lookup = {}
   for result in results
-    logger.log result.track_name, result.start_time, result.sof
     for row in result.rows
-      logger.log tab, row.name, tab, row.irating, tab, row.laps, tab, row.incidents, tab, row.end_time, row.points
-  drivers = {}
-  for result in results
-    for row in result.rows_pts
-      if drivers[row.name]
-        drivers[row.name].points.push if row.points then row.points else 0
-        drivers[row.name].points_races += if row.points then 1 else 0
-        if row.incs_counted
-          drivers[row.name].incs.push row.incidents
-          drivers[row.name].incs_races += 1
-      else
-        drivers[row.name] =
-          name: row.name
-          points: [ if row.points then row.points else 0 ]
-          points_races: if row.points then 1 else 0
-          incs: [ if row.incs_counted then row.incidents else 0 ]
-          incs_races: if row.incs_counted then 1 else 0
-
-
-  pts_chart = clone(Object.values(drivers)).sort (a,b) -> util.sum(util.sort(b.points, util.desc).slice(0,8)) - util.sum(util.sort(a.points, util.desc).slice(0,8))
-  logger.log 'Classifica punti'
-  for row in pts_chart
-    row.points_sum = util.sum util.sort(row.points, util.desc).slice(0,8)
-    logger.log tab, row.name, tab, row.points_sum, tab, row.points_races
-
-  incs_chart = clone(Object.values(drivers)).filter((d) -> d.incs_races > 0).sort incs_sort
-  logger.log 'Classifica fair-play'
-  for row in incs_chart
-    row.incs_sum = util.sum util.sort(row.incs, util.asc).slice(0,8)
-    row.incs_ratio = (row.incs_sum / Math.min(row.incs_races, 8)).toFixed 2
-    logger.log tab, row.name, tab, row.incs_sum, tab, row.incs_races, tab, row.incs_ratio
-
-  # prepara output
+      if not drivers_lookup[row.custid]
+        drivers_lookup[row.custid] = fix_names row.name
+  # excel output
   workbook = new ExcelJS.Workbook()
   workbook.creator = 'dgdevel'
-  sheet = workbook.addWorksheet 'Classifiche', {properties: {tabColor:{argb:'FFFF0000'}}}
-  sheet.columns = [
-    { header : 'Pilota', width: 50 }
-    { header : 'Punti', width: 8 }
-    { header : 'Gare Disputate', width: 15 }
-    { header : ' ', width: 15 }
-    { header : 'Pilota', width: 50 }
-    { header : 'Incidenti', width: 8 }
-    { header : 'Gare Disputate', width: 15 }
+  excel_addsheet workbook, 'Overall', 'FFFF0000',
+    Pilota : 50
+    Punti: 8
+    'Gare Disputate': 15
+    Variazione: 12
+    'Dettaglio': 80
+  , results.slice(-1)[0].standings.standings.overall.map (entry) -> [
+    drivers_lookup[entry.custid]
+    if entry.points > 0 then entry.points else ''
+    entry.race_completed
+    if entry.variation > 0 then "+#{entry.variation}" else if entry.variation < 0 then "#{entry.variation}" else "-"
+    entry.results.join ', '
   ]
-  for row, index in pts_chart
-    incrow = incs_chart[index]
-
-    sheet.getRow(index+2).getCell(1).value = fix_names row.name
-    sheet.getRow(index+2).getCell(2).value = row.points_sum
-    sheet.getRow(index+2).getCell(3).value = row.points_races + '/8'
-
-    if incrow
-      sheet.getRow(index+2).getCell(5).value = fix_names incrow.name
-      sheet.getRow(index+2).getCell(6).value = incrow.incs_sum
-      sheet.getRow(index+2).getCell(7).value = incrow.incs_races + '/8'
-  sheet.getRow(index+3).getCell(1).value = 'Migliori 8 di 12 gare per la classifica a punti, richiesti 50% dei giri del leader'
-  sheet.getRow(index+4).getCell(1).value = 'Migliori 8 di 12 gare per classifica fair play, richiesti max -1 giri dal leader'
-
-  ptssheet = workbook.addWorksheet 'Dettaglio Punti', {properties: {tabColor:{argb:'FFFF0000'}}}
-  ptssheet.columns = [
-    { header: 'Pilota', width: 50 }
-    { header: 'Punti', width: 8 }
-    { header: 'Gare Disputate', width: 15 }
-    { header: 'Dettaglio', width: 250 }
+  excel_addsheet workbook, 'AM', 'FFFF0000',
+    Pilota : 50
+    Punti: 8
+    'Gare Disputate': 15
+    Variazione: 12
+    'Dettaglio': 80
+  , results.slice(-1)[0].standings.standings.am.map (entry) -> [
+    drivers_lookup[entry.custid]
+    if entry.points > 0 then entry.points else ''
+    entry.race_completed
+    if entry.variation > 0 then "+#{entry.variation}" else if entry.variation < 0 then "#{entry.variation}" else "-"
+    entry.results.join ', '
   ]
-  for row, index in pts_chart
-    ptssheet.getRow(index+2).getCell(1).value = fix_names row.name
-    ptssheet.getRow(index+2).getCell(2).value = row.points_sum
-    ptssheet.getRow(index+2).getCell(3).value = row.points_races + '/8'
-    ptssheet.getRow(index+2).getCell(4).value = row.points.join(', ')
-
-
-  incssheet = workbook.addWorksheet 'Dettaglio Incs', {properties: {tabColor: {argb: 'FFFF0000'}}}
-  incssheet.columns = [
-    { header : 'Pilota', width: 50 }
-    { header : 'Incidenti', width: 8 }
-    { header : 'Gare Disputate', width: 15 }
-    { header : 'Dettaglio', width: 250 }
-  ]
-  for incrow, index in incs_chart
-    incssheet.getRow(index+2).getCell(1).value = fix_names incrow.name
-    incssheet.getRow(index+2).getCell(2).value = incrow.incs_sum
-    incssheet.getRow(index+2).getCell(3).value = incrow.incs_races + '/8'
-    incssheet.getRow(index+2).getCell(4).value = incrow.incs.join(', ')
-
   for result in results
-    racesheet = workbook.addWorksheet result.track_name, {properties: {tabColor:{argb:'FF00FF00'}}}
-    racesheet.columns = [
-      { header: 'Pilota', width: 50 }
-      { header: 'iRating', width: 8 }
-      { header: 'Giri completati', width: 8 }
-      { header: 'Punti', width: 8 }
-      { header: 'Incidenti', width: 8 }
+    rows = []
+    if result.standings.official
+      rows = result.standings.race.overall.map (entry) ->
+        name = drivers_lookup[entry.custid]
+        overall = entry.points
+        am = result.standings.race.am.filter (e) -> e.custid is entry.custid
+        laps = result.rows.filter (e) -> e.custid is entry.custid
+        if laps.length > 0
+          laps = laps[0].laps
+        else
+          laps = 0
+        if am.length > 0
+          am = am[0].points
+        else
+          am = 0
+        [
+          name
+          entry.irating
+          if overall > 0 then overall else ''
+          if am > 0 then am else ''
+          laps
+        ]
+    rows.push []
+    rows.push [
+      "https://members.iracing.com/membersite/member/EventResult.do?&subsessionid=#{result.subsessionid}"
     ]
-    for row, index in result.rows
-      racesheet.getRow(index+2).getCell(1).value = fix_names row.name
-      racesheet.getRow(index+2).getCell(2).value = row.irating
-      racesheet.getRow(index+2).getCell(3).value = row.laps
-      racesheet.getRow(index+2).getCell(4).value = row.points
-      racesheet.getRow(index+2).getCell(5).value = row.incidents
-    racesheet.getRow(index+3).getCell(3).value = 'SoF'
-    racesheet.getRow(index+3).getCell(4).value = result.sof
-    racesheet.getRow(index+4).getCell(1).value = "https://members.iracing.com/membersite/member/EventResult.do?&subsessionid=#{result.subsessionid}"
+    excel_addsheet workbook, result.track_name, 'FF00FF00',
+      Pilota : 50
+      iRating: 20
+      Overall : 8
+      AM : 8
+      'Giri Completati': 20
+    , rows
+
 
   buffer = await workbook.xlsx.writeBuffer()
   fs.writeFileSync(path.parse(process.argv[2]).name + '.xlsx', buffer)
-
-
 
 ir.login credentials.username, credentials.password, (loggedIn) ->
   if not loggedIn
