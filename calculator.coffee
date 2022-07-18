@@ -29,6 +29,27 @@ unescape_plus = util.unescape_plus
 clone = util.clone
 fix_names = util.fix_names
 
+ptmul_for_subsessionid = (subsessionid, callback) ->
+  ptmul_file = "#{process.argv[2]}.ptmul"
+  fs.access ptmul_file, fs.constants.R_OK, (err) ->
+    if err
+      callback 1
+    else
+      muls = fs.readFileSync ptmul_file
+        .toString()
+        .split '\n'
+        .filter (line) -> line isnt ''
+        .reduce (arr, line) ->
+          parts = line.split ':'
+          arr[parts[0]] = parseInt parts[1], 10
+          arr
+        , {}
+      # console.dir muls
+      if muls[subsessionid]
+        callback muls[subsessionid]
+      else
+        callback 1
+
 get_irating_for_row = (row, callback) ->
   key = "irating.#{row.custid}.#{row.end_time}"
   cache.get key, (365 * 24 * 60 * 60 * 1000), (found, value) ->
@@ -70,8 +91,10 @@ process_session = (subsessionid, callback) ->
     res.rows_pts = res.rows
     util.listexec res.rows_pts, get_irating_for_row, (rows) ->
       res.rows_pts = rows
-      res.standings = manager.add_race rows
-      callback res
+      ptmul_for_subsessionid subsessionid, (ptmul) ->
+        # console.log subsessionid, ptmul
+        res.standings = manager.add_race rows, ptmul
+        callback res
 
 tab = '\t'
 

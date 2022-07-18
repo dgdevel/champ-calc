@@ -81,7 +81,7 @@ class S5PointsStandingsManager
 
   sort_by_points: (a,b) -> b.points - a.points
 
-  add_race: (rows) ->
+  add_race: (rows, ptmul=1) ->
     @week_number += 1
     if not @is_official rows
       return
@@ -98,7 +98,9 @@ class S5PointsStandingsManager
         custid: row.custid
         name  : row.name
         irating : row.irating
-        points: if completed_race and index < @points_table.length then @points_table[index] else 0
+        points: ptmul * if completed_race and index < @points_table.length then @points_table[index] else 0
+        completed: completed_race
+    .filter (e) -> e.completed
 
     standings_am_race = rows.filter((row) => @is_am(row.custid, row.irating)).map (row, index) =>
       completed_race = @completed_required_percentage(leader_laps, @complete_pct)(row)
@@ -106,7 +108,9 @@ class S5PointsStandingsManager
         custid: row.custid
         name  : row.name
         irating : row.irating
-        points: if completed_race and index < @points_table.length then @points_table[index] else 0
+        points: ptmul * if completed_race and index < @points_table.length then @points_table[index] else 0
+        completed: completed_race
+    .filter (e) -> e.completed
 
     for entry in standings_overall_race
       if @is_in_standings entry.custid

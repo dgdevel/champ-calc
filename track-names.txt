@@ -31,3 +31,4 @@ Barber:Barber
 Oulton:Oulton
 Virginia:VIR
 Donington:Donington
+Fuji:Fuji
